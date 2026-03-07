@@ -7,21 +7,6 @@ struct Config {
     frequency: u8,
 }
 
-fn main() {
-    let args: Vec<String> = env::args().collect();
-
-    let config = Config::build(&args).unwrap_or_else(|err| {
-        println!("{err}");
-        exit(1);
-    });
-
-    let _ = run(config);
-}
-
-fn run(config: Config) -> Result<(), Box<dyn Error>> {
-    Ok(())
-}
-
 impl Config {
     pub fn build(args: &[String]) -> Result<Config, &'static str> {
         match args.len() {
@@ -40,4 +25,19 @@ impl Config {
             _ => Err("Usage: <sensor type> <frequency>"),
         }
     }
+}
+
+fn main() {
+    let args: Vec<String> = env::args().collect();
+
+    let config = Config::build(&args).unwrap_or_else(|err| {
+        println!("{err}");
+        exit(1);
+    });
+
+    let _ = run(config);
+}
+
+fn run(config: Config) -> Result<(), Box<dyn Error>> {
+    Ok(())
 }
