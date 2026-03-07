@@ -1,4 +1,7 @@
-use std::{env, process::exit};
+use std::{
+    env,
+    process::{self, exit},
+};
 
 struct Config {
     sensor_type: String,
@@ -8,11 +11,20 @@ struct Config {
 fn main() {
     let args: Vec<String> = env::args().collect();
 
-    let config = Config::new(&args);
+    let config = Config::build(&args).unwrap_or_else(|err| {
+        println!("{err}");
+        exit(1);
+    });
+
+    run(config);
+}
+
+fn run(config: Config) {
+    todo!()
 }
 
 impl Config {
-    pub fn new(args: &[String]) -> Result<Config, &'static str> {
+    pub fn build(args: &[String]) -> Result<Config, &'static str> {
         match args.len() {
             3 => {
                 let sensor_type = args[1].clone();
