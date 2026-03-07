@@ -1,17 +1,10 @@
-use std::{
-    env,
-    process::{self, exit},
-    str::FromStr,
-};
+use std::{env, error::Error, process::exit, str::FromStr};
+
+use generator::sensor::SensorType;
 
 struct Config {
     sensor_type: SensorType,
-    frequency: String,
-}
-
-enum SensorType {
-    Temperature,
-    Humidity,
+    frequency: u8,
 }
 
 fn main() {
@@ -22,43 +15,29 @@ fn main() {
         exit(1);
     });
 
-    run(config);
+    let _ = run(config);
 }
 
-fn run(config: Config) {
-    todo!()
+fn run(config: Config) -> Result<(), Box<dyn Error>> {
+    Ok(())
 }
 
 impl Config {
     pub fn build(args: &[String]) -> Result<Config, &'static str> {
         match args.len() {
             3 => {
-                let sensor_type = SensorType::from_str(&args[1].clone())
+                let sensor_type = SensorType::from_str(&args[1])
                     .map_err(|_| "Passed in <sensor_type> is not an option.")?;
 
-                let frequency = args[2].clone();
-
+                let frequency = args[2]
+                    .parse::<u8>()
+                    .map_err(|_| "Number needs to be between 0-255.")?;
                 Ok(Config {
                     sensor_type,
                     frequency,
                 })
             }
             _ => Err("Usage: <sensor type> <frequency>"),
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq)]
-struct ParseSensorTypeError;
-
-impl FromStr for SensorType {
-    type Err = ParseSensorTypeError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.trim().to_ascii_lowercase().as_str() {
-            "temperature" => Ok(SensorType::Temperature),
-            "humidity" => Ok(SensorType::Humidity),
-            _ => Err(ParseSensorTypeError),
         }
     }
 }
