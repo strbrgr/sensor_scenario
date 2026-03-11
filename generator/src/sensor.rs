@@ -5,9 +5,6 @@ pub enum SensorType {
     Humidity,
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct ParseSensorTypeError;
-
 impl FromStr for SensorType {
     type Err = &'static str;
 
