@@ -1,6 +1,6 @@
-use std::{env, error::Error, process::exit, str::FromStr};
+use std::{env, process::exit, str::FromStr, thread::sleep, time::Duration};
 
-use generator::sensor::SensorType;
+use generator::sensor::{SensorType, generate_sensor_reading};
 
 struct Config {
     sensor_type: SensorType,
@@ -15,7 +15,7 @@ impl Config {
 
                 let frequency = args[2]
                     .parse::<u8>()
-                    .map_err(|_| "Number needs to be between 0-255.")?;
+                    .map_err(|_| "<frequency> needs to be between 0-255.")?;
                 Ok(Config {
                     sensor_type,
                     frequency,
@@ -34,9 +34,14 @@ fn main() {
         exit(1);
     });
 
-    let _ = run(config);
+    run(config);
 }
 
-fn run(config: Config) -> Result<(), Box<dyn Error>> {
-    Ok(())
+fn run(config: Config) {
+    loop {
+        let reading = generate_sensor_reading(&config.sensor_type);
+        println!("{reading}");
+        let duration = Duration::new(config.frequency as u64, 0);
+        sleep(duration);
+    }
 }

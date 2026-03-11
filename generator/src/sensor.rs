@@ -1,3 +1,4 @@
+use rand::random_range;
 use std::str::FromStr;
 
 pub enum SensorType {
@@ -13,6 +14,22 @@ impl FromStr for SensorType {
             "temperature" => Ok(SensorType::Temperature),
             "humidity" => Ok(SensorType::Humidity),
             _ => Err("Passed in <sensor_type> is not an option."),
+        }
+    }
+}
+
+pub fn generate_sensor_reading(sensor_type: &SensorType) -> String {
+    match sensor_type {
+        SensorType::Temperature => {
+            let unit = 'c';
+            let temperature = random_range(-10..=42);
+            let sensor_reading = format!(r#"{{"temp":"{}","unit":{}}}"#, temperature, unit);
+            sensor_reading
+        }
+        SensorType::Humidity => {
+            let humidity = random_range(0.00..=99.99);
+            let sensor_reading = format!("HUM:{:.1}", humidity);
+            sensor_reading
         }
     }
 }
