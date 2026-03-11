@@ -11,8 +11,7 @@ impl Config {
     pub fn build(args: &[String]) -> Result<Config, &'static str> {
         match args.len() {
             3 => {
-                let sensor_type = SensorType::from_str(&args[1])
-                    .map_err(|_| "Passed in <sensor_type> is not an option.")?;
+                let sensor_type = SensorType::from_str(&args[1])?;
 
                 let frequency = args[2]
                     .parse::<u8>()

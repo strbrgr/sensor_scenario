@@ -9,13 +9,13 @@ pub enum SensorType {
 pub struct ParseSensorTypeError;
 
 impl FromStr for SensorType {
-    type Err = ParseSensorTypeError;
+    type Err = &'static str;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.trim().to_ascii_lowercase().as_str() {
             "temperature" => Ok(SensorType::Temperature),
             "humidity" => Ok(SensorType::Humidity),
-            _ => Err(ParseSensorTypeError),
+            _ => Err("Passed in <sensor_type> is not an option."),
         }
     }
 }
