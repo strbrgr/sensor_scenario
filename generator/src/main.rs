@@ -50,13 +50,13 @@ fn main() -> std::io::Result<()> {
 fn run(config: &mut Config) -> std::io::Result<()> {
     loop {
         let reading = generate_sensor_reading(&config.sensor_type);
-        let len = reading.len() as u32;
+        let json = serde_json::to_vec(&reading)?;
+        let len = json.len() as u32;
 
         // Send length first
         config.tcp_stream.write_all(&len.to_be_bytes())?;
-        let reading = serde_json::to_vec(&reading)?;
         // send actual content
-        config.tcp_stream.write_all(&reading)?;
+        config.tcp_stream.write_all(&json)?;
 
         // println!("{reading}");
         let duration = Duration::new(config.frequency as u64, 0);
