@@ -58,7 +58,6 @@ fn run(config: &mut Config) -> std::io::Result<()> {
         // send actual content
         config.tcp_stream.write_all(&json)?;
 
-        // println!("{reading}");
         let duration = Duration::new(config.frequency as u64, 0);
         sleep(duration);
     }
