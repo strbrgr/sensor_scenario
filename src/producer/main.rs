@@ -2,12 +2,17 @@ use std::{
     env, io::Write, net::TcpStream, process::exit, str::FromStr, thread::sleep, time::Duration,
 };
 
-use generator::sensor::{SensorType, generate_sensor_reading};
+use rand::random_range;
+
+use crate::sensor::{SensorType, generate_sensor_reading};
+
+pub mod sensor;
 
 struct Config {
     sensor_type: SensorType,
     frequency: u8,
     tcp_stream: TcpStream,
+    sensor_id: i32,
 }
 
 impl Config {
@@ -23,10 +28,13 @@ impl Config {
                 let tcp_stream =
                     TcpStream::connect("127.0.0.1:8080").map_err(|_| "Error connecting via Tcp")?;
 
+                let sensor_id = random_range(1..=10_000);
+
                 Ok(Config {
                     sensor_type,
                     frequency,
                     tcp_stream,
+                    sensor_id,
                 })
             }
             _ => Err("Usage: <sensor type> <frequency>"),
@@ -49,7 +57,7 @@ fn main() -> std::io::Result<()> {
 
 fn run(config: &mut Config) -> std::io::Result<()> {
     loop {
-        let reading = generate_sensor_reading(&config.sensor_type);
+        let reading = generate_sensor_reading(&config.sensor_type, &config.sensor_id);
         let json = serde_json::to_vec(&reading)?;
         let len = json.len() as u32;
 

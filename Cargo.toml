@@ -1,0 +1,17 @@
+[package]
+name = "sensor_scenario"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "producer"
+path = "src/producer/main.rs"
+
+[[bin]]
+name = "gateway"
+path = "src/gateway/main.rs"
+
+[dependencies]
+rand = "0.10.0"
+serde = "1.0.228"
+serde_json = "1.0.149"
