@@ -1,6 +1,7 @@
 use std::{
     io::{Read, Result},
     net::{TcpListener, TcpStream},
+    thread,
 };
 
 fn handle_client(mut stream: TcpStream) -> std::io::Result<()> {
@@ -25,7 +26,10 @@ fn main() -> Result<()> {
     let listener = TcpListener::bind("127.0.0.1:8080")?;
 
     for stream in listener.incoming() {
-        handle_client(stream?)?;
+        let stream = stream.unwrap();
+        thread::spawn(|| {
+            handle_client(stream);
+        });
     }
 
     Ok(())
