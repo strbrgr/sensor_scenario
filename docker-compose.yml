@@ -1,0 +1,19 @@
+services:
+  iggy-server:
+    image: iggyrs/iggy:latest
+    container_name: iggy-server
+    restart: unless-stopped
+    ports:
+      - "3000:3000"   # HTTP API
+      - "8090:8090"   # TCP transport (iggy client default)
+      - "8092:8092"   # QUIC transport
+    volumes:
+      - iggy-server:/local_data
+
+volumes:
+  iggy-server:
+    driver: local
+
+networks:
+  iggy:
+    name: iggy-network
