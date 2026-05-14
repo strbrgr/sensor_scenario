@@ -31,8 +31,10 @@ pub fn generate_sensor_reading(sensor_type: &SensorType, sensor_id: &i32) -> Str
         }
         SensorType::Humidity => {
             let humidity = random_range(0.00..=99.99);
-            let sensor_reading =
-                format!(r#"{{id": "humidity-{}", "HUM:{:.1}}}"#, sensor_id, humidity);
+            let sensor_reading = format!(
+                r#"{{"id": "humidity-{}", "HUM:{:.1}}}"#,
+                sensor_id, humidity
+            );
             sensor_reading
         }
     }
