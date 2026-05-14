@@ -28,7 +28,7 @@ fn main() -> Result<()> {
     for stream in listener.incoming() {
         let stream = stream.unwrap();
         thread::spawn(|| {
-            handle_client(stream);
+            let _ = handle_client(stream);
         });
     }
 
