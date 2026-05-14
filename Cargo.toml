@@ -12,6 +12,8 @@ name = "gateway"
 path = "src/gateway/main.rs"
 
 [dependencies]
+iggy = "0.10.0"
 rand = "0.10.0"
 serde = "1.0.228"
 serde_json = "1.0.149"
+tokio = "1.52.3"
