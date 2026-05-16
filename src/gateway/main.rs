@@ -8,9 +8,9 @@ use std::{
 };
 
 use iggy::prelude::{
-    Client, CompressionAlgorithm, DEFAULT_ROOT_PASSWORD, DEFAULT_ROOT_USERNAME, IggyClient,
-    IggyExpiry, IggyMessage, MaxTopicSize, MessageClient, Partitioning, StreamClient, TopicClient,
-    UserClient,
+    Client, CompressionAlgorithm, DEFAULT_ROOT_PASSWORD, DEFAULT_ROOT_USERNAME, Identifier,
+    IggyClient, IggyDuration, IggyExpiry, IggyMessage, MaxTopicSize, MessageClient, Partitioning,
+    StreamClient, TopicClient, UserClient,
 };
 use tokio::time::sleep;
 use tracing::{info, warn};
@@ -18,39 +18,53 @@ use tracing::{info, warn};
 const STREAM_NAME: &str = "sample-stream";
 const TOPIC_NAME: &str = "sample-topic";
 const PARTITION_ID: u32 = 1;
+const BATCHES_LIMIT: u32 = 5;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     tracing_subscriber::fmt::init();
+    // Incoming Tcp messages
     let listener = TcpListener::bind("127.0.0.1:8080")?;
+
+    // Producer client
     let client = Arc::new(IggyClient::default());
     client.connect().await?;
     client
         .login_user(DEFAULT_ROOT_USERNAME, DEFAULT_ROOT_PASSWORD)
         .await?;
-    init_system(&client).await;
+    let (stream_id, topic_id) = init_system(&client).await;
 
     for stream in listener.incoming() {
         let stream = stream.unwrap();
         let client = Arc::clone(&client);
 
         tokio::spawn(async move {
-            let _ = handle_client(stream, client);
+            let _ = handle_client(stream, client, stream_id, topic_id).await;
         });
     }
 
     Ok(())
 }
 
-async fn init_system(client: &IggyClient) {
-    match client.create_stream(STREAM_NAME).await {
-        Ok(_) => info!("Stream was created."),
-        Err(_) => warn!("Stream already exists and will not be created again."),
-    }
+async fn init_system(client: &IggyClient) -> (u32, u32) {
+    let stream = match client.create_stream(STREAM_NAME).await {
+        Ok(stream) => {
+            info!("Stream was created.");
+            stream
+        }
+        Err(_) => {
+            warn!("Stream already exists and will not be created again.");
+            client
+                .get_stream(&Identifier::named(STREAM_NAME).unwrap())
+                .await
+                .unwrap()
+                .expect("Failed to get stream")
+        }
+    };
 
-    match client
+    let topic = match client
         .create_topic(
-            &STREAM_NAME.try_into().unwrap(),
+            &Identifier::named(STREAM_NAME).unwrap(),
             TOPIC_NAME,
             1,
             CompressionAlgorithm::default(),
@@ -60,70 +74,85 @@ async fn init_system(client: &IggyClient) {
         )
         .await
     {
-        Ok(_) => info!("Topic was created."),
-        Err(_) => warn!("Topic already exists and will not be created again."),
-    }
+        Ok(topic) => {
+            info!("Topic was created.");
+            topic
+        }
+        Err(_) => {
+            warn!("Topic already exists and will not be created again.");
+            client
+                .get_topic(
+                    &Identifier::named(STREAM_NAME).unwrap(),
+                    &Identifier::named(TOPIC_NAME).unwrap(),
+                )
+                .await
+                .unwrap()
+                .expect("Failed to get topic")
+        }
+    };
+
+    (stream.id, topic.id)
 }
 
-fn handle_client(mut stream: TcpStream, client: Arc<IggyClient>) -> std::io::Result<()> {
-    loop {
-        let mut len_buf = [0u8; 4];
+async fn handle_client(
+    mut stream: TcpStream,
+    client: Arc<IggyClient>,
+    stream_id: u32,
+    topic_id: u32,
+) -> Result<(), Box<dyn Error>> {
+    let duration = IggyDuration::from_str("500ms")?;
+    let mut interval = tokio::time::interval(duration.get_duration());
+    info!(
+        "Messages will be sent to stream: {} ({}), topic: {} ({}), partition: {} with interval {}.",
+        STREAM_NAME,
+        stream_id,
+        TOPIC_NAME,
+        topic_id,
+        PARTITION_ID,
+        duration.as_human_time_string()
+    );
 
-        if stream.read_exact(&mut len_buf).is_err() {
+    let messages_per_batch = 10;
+    let mut sent_batches = 0;
+    let partitioning = Partitioning::partition_id(PARTITION_ID);
+    let mut messages = Vec::new();
+
+    loop {
+        if sent_batches == BATCHES_LIMIT {
+            info!("Sent {sent_batches} batches of messages, exiting.");
+            return Ok(());
+        }
+        interval.tick().await;
+
+        let mut incoming_message_len_buf = [0u8; 4];
+
+        if stream.read_exact(&mut incoming_message_len_buf).is_err() {
             return Ok(());
         }
 
-        let msg_len = u32::from_be_bytes(len_buf) as usize;
+        let incoming_message_len = u32::from_be_bytes(incoming_message_len_buf) as usize;
 
-        let mut buf = vec![0u8; msg_len];
+        let mut buf = vec![0u8; incoming_message_len];
         stream.read_exact(&mut buf)?;
 
-        let msg: String = serde_json::from_slice(&buf)?;
-        let msg = IggyMessage::from(msg);
-        let mut msgs = vec![msg];
-        let partitioning = Partitioning::partition_id(PARTITION_ID);
+        let message: String = serde_json::from_slice(&buf)?;
+        let message = IggyMessage::from(message);
+        messages.push(message);
 
-        client.send_messages(
-            &STREAM_NAME.try_into().unwrap(),
-            &TOPIC_NAME.try_into().unwrap(),
-            &partitioning,
-            &mut msgs,
-        );
+        if messages.len() == messages_per_batch {
+            client
+                .send_messages(
+                    &Identifier::named(STREAM_NAME).unwrap(),
+                    &Identifier::named(TOPIC_NAME).unwrap(),
+                    &partitioning,
+                    &mut messages,
+                )
+                .await?;
 
-        // println!("Received message:: {}", msg);
-    }
-}
+            sent_batches += 1;
+            info!("Sent {messages_per_batch} message(s).");
 
-async fn produce_messages(client: &IggyClient) -> Result<(), Box<dyn Error>> {
-    let interval = Duration::from_millis(500);
-    info!(
-        "Messages will be sent to stream: {}, topic: {}, partition: {} with interval {} ms.",
-        STREAM_NAME,
-        TOPIC_NAME,
-        PARTITION_ID,
-        interval.as_millis()
-    );
-
-    let mut current_id = 0;
-    let messages_per_batch = 10;
-    let partitioning = Partitioning::partition_id(PARTITION_ID);
-    loop {
-        let mut messages = Vec::new();
-        for _ in 0..messages_per_batch {
-            current_id += 1;
-            let payload = format!("message-{current_id}");
-            let message = IggyMessage::from_str(&payload)?;
-            messages.push(message);
+            messages.clear();
         }
-        client
-            .send_messages(
-                &STREAM_NAME.try_into().unwrap(),
-                &TOPIC_NAME.try_into().unwrap(),
-                &partitioning,
-                &mut messages,
-            )
-            .await?;
-        info!("Sent {messages_per_batch} message(s).");
-        sleep(interval).await;
     }
 }
