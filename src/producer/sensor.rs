@@ -21,10 +21,10 @@ impl FromStr for SensorType {
 pub fn generate_sensor_reading(sensor_type: &SensorType, sensor_id: &i32) -> String {
     match sensor_type {
         SensorType::Temperature => {
-            let unit = 'c';
+            let unit = "c";
             let temperature = random_range(-10..=42);
             let sensor_reading = format!(
-                r#"{{"id": "temp-{}", "temp":"{}","unit":{}}}"#,
+                r#"{{"id": "temp-{}", "temp":"{}","unit":"{}"}}"#,
                 sensor_id, temperature, unit
             );
             sensor_reading
@@ -32,7 +32,7 @@ pub fn generate_sensor_reading(sensor_type: &SensorType, sensor_id: &i32) -> Str
         SensorType::Humidity => {
             let humidity = random_range(0.00..=99.99);
             let sensor_reading = format!(
-                r#"{{"id": "humidity-{}", "HUM:{:.1}}}"#,
+                r#"{{"id": "humidity-{}", "humidity":{:.1}}}"#,
                 sensor_id, humidity
             );
             sensor_reading
