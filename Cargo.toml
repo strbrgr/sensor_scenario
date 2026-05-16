@@ -11,6 +11,10 @@ path = "src/producer/main.rs"
 name = "gateway"
 path = "src/gateway/main.rs"
 
+[[bin]]
+name = "consumer"
+path = "src/consumer/main.rs"
+
 [dependencies]
 iggy = "0.10.0"
 rand = "0.10.0"
