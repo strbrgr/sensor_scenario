@@ -1,9 +1,9 @@
-use std::{error::Error, str::FromStr, sync::Arc};
+use std::{env, error::Error, str::FromStr, sync::Arc};
 
 use iggy::prelude::{
-    Client, CompressionAlgorithm, DEFAULT_ROOT_PASSWORD, DEFAULT_ROOT_USERNAME, Identifier,
-    IggyClient, IggyDuration, IggyExpiry, IggyMessage, MaxTopicSize, MessageClient, Partitioning,
-    StreamClient, TopicClient, UserClient,
+    Client, CompressionAlgorithm, DEFAULT_ROOT_USERNAME, Identifier, IggyClient, IggyDuration,
+    IggyExpiry, IggyMessage, MaxTopicSize, MessageClient, Partitioning, StreamClient, TopicClient,
+    UserClient,
 };
 use tokio::{
     io::AsyncReadExt,
@@ -13,20 +13,23 @@ use tracing::{info, warn};
 
 const STREAM_NAME: &str = "sample-stream";
 const TOPIC_NAME: &str = "sample-topic";
-const PARTITION_ID: u32 = 1;
+const PARTITION_ID: u32 = 0;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    dotenvy::dotenv().ok();
     tracing_subscriber::fmt::init();
-    // Incoming Tcp messages
 
-    // Producer client
+    let root_username = env::var("IGGY_ROOT_USERNAME")
+        .unwrap_or_else(|_| DEFAULT_ROOT_USERNAME.to_string());
+    let root_password = env::var("IGGY_ROOT_PASSWORD")
+        .map_err(|_| "IGGY_ROOT_PASSWORD must be set (see .env)")?;
+
     let client = Arc::new(IggyClient::default());
     client.connect().await?;
-    client
-        .login_user(DEFAULT_ROOT_USERNAME, DEFAULT_ROOT_PASSWORD)
-        .await?;
-    let (stream_id, topic_id) = init_system(&client).await;
+    client.login_user(&root_username, &root_password).await?;
+
+    let (stream_id, topic_id) = init_system(&client).await?;
     let listener = TcpListener::bind("127.0.0.1:8080").await?;
 
     loop {
@@ -40,7 +43,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
 }
 
-async fn init_system(client: &IggyClient) -> (u32, u32) {
+async fn init_system(client: &IggyClient) -> Result<(u32, u32), Box<dyn Error>> {
+    let stream_ident = Identifier::named(STREAM_NAME)?;
+    let topic_ident = Identifier::named(TOPIC_NAME)?;
+
     let stream = match client.create_stream(STREAM_NAME).await {
         Ok(stream) => {
             info!("Stream was created.");
@@ -49,16 +55,15 @@ async fn init_system(client: &IggyClient) -> (u32, u32) {
         Err(_) => {
             warn!("Stream already exists and will not be created again.");
             client
-                .get_stream(&Identifier::named(STREAM_NAME).unwrap())
-                .await
-                .unwrap()
-                .expect("Failed to get stream")
+                .get_stream(&stream_ident)
+                .await?
+                .ok_or("stream not found after create-already-exists")?
         }
     };
 
     let topic = match client
         .create_topic(
-            &Identifier::named(STREAM_NAME).unwrap(),
+            &stream_ident,
             TOPIC_NAME,
             1,
             CompressionAlgorithm::default(),
@@ -75,17 +80,13 @@ async fn init_system(client: &IggyClient) -> (u32, u32) {
         Err(_) => {
             warn!("Topic already exists and will not be created again.");
             client
-                .get_topic(
-                    &Identifier::named(STREAM_NAME).unwrap(),
-                    &Identifier::named(TOPIC_NAME).unwrap(),
-                )
-                .await
-                .unwrap()
-                .expect("Failed to get topic")
+                .get_topic(&stream_ident, &topic_ident)
+                .await?
+                .ok_or("topic not found after create-already-exists")?
         }
     };
 
-    (stream.id, topic.id)
+    Ok((stream.id, topic.id))
 }
 
 async fn handle_client(

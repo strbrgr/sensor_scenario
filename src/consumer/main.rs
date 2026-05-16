@@ -1,4 +1,5 @@
 use iggy::prelude::*;
+use std::env;
 use std::error::Error;
 use std::time::Duration;
 use tokio::time::sleep;
@@ -6,16 +7,21 @@ use tracing::info;
 
 const STREAM_NAME: &str = "sample-stream";
 const TOPIC_NAME: &str = "sample-topic";
-const PARTITION_ID: u32 = 1;
+const PARTITION_ID: u32 = 0;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     tracing_subscriber::fmt::init();
+    dotenvy::dotenv().ok();
+
+    let root_username =
+        env::var("IGGY_ROOT_USERNAME").unwrap_or_else(|_| DEFAULT_ROOT_USERNAME.to_string());
+    let root_password =
+        env::var("IGGY_ROOT_PASSWORD").map_err(|_| "IGGY_ROOT_PASSWORD must be set (see .env)")?;
+
     let client = IggyClient::default();
     client.connect().await?;
-    client
-        .login_user(DEFAULT_ROOT_USERNAME, DEFAULT_ROOT_PASSWORD)
-        .await?;
+    client.login_user(&root_username, &root_password).await?;
     consume_messages(&client).await
 }
 
