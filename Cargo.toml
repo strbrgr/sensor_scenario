@@ -16,6 +16,7 @@ name = "consumer"
 path = "src/consumer/main.rs"
 
 [dependencies]
+dotenvy = "0.15"
 iggy = "0.10.0"
 rand = "0.10.0"
 serde = "1.0.228"
