@@ -1,0 +1,26 @@
+services:
+  iggy-server:
+    image: apache/iggy:latest
+    container_name: iggy-server
+    restart: unless-stopped
+    environment:
+      IGGY_TCP_ADDRESS: "0.0.0.0:8090"
+      IGGY_HTTP_ADDRESS: "0.0.0.0:3000"
+      IGGY_QUIC_ADDRESS: "0.0.0.0:8080"
+      IGGY_WEBSOCKET_ADDRESS: "0.0.0.0:8092"
+      IGGY_ROOT_USERNAME: ${IGGY_ROOT_USERNAME}
+      IGGY_ROOT_PASSWORD: ${IGGY_ROOT_PASSWORD}
+    ports:
+      - "3000:3000"   # HTTP API
+      - "8090:8090"   # TCP transport (iggy client default)
+      - "8092:8092"   # WebSocket transport
+    volumes:
+      - iggy-server:/local_data
+
+volumes:
+  iggy-server:
+    driver: local
+
+networks:
+  iggy:
+    name: iggy-network
