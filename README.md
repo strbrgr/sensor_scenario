@@ -5,31 +5,70 @@ A simulated IoT sensor data pipeline built in Rust. Sensors produce readings at 
 ## Architecture
 
 ```
-[Producer (sensor)] ──TCP──> [Gateway] ──Iggy──> [Consumers]
-[Producer (sensor)] ──TCP──> [Gateway] ──Iggy──> [Consumers]
+[Producer (sensor)] ──TCP──> [Gateway] ──Iggy──> [Consumer]
+[Producer (sensor)] ──TCP──> [Gateway] ──Iggy──> [Consumer]
         ...
 ```
 
 - **Producer** — simulates a sensor of a given type, generates randomized readings at a set frequency, and streams them to the gateway using a length-prefixed binary protocol.
-- **Gateway** — TCP server that accepts connections from multiple producers concurrently (one thread per connection). Acts as an [Apache Iggy](https://iggy.rs) producer, forwarding sensor readings into a message stream for downstream consumers.
+- **Gateway** — TCP server that accepts connections from multiple producers concurrently. Acts as an [Apache Iggy](https://iggy.apache.org) producer, forwarding sensor readings into a message stream.
+- **Consumer** — subscribes to the Iggy topic and prints incoming messages.
 
 ## Sensor types
 
 | Type          | Output fields                  | Range            |
-|---------------|-------------------------------|------------------|
-| `temperature` | `id`, `temp`, `unit`          | -10 °C to 42 °C  |
-| `humidity`    | `id`, `HUM`                   | 0% to 99.99%     |
+|---------------|--------------------------------|------------------|
+| `temperature` | `id`, `temp`, `unit`           | -10 °C to 42 °C  |
+| `humidity`    | `id`, `humidity`               | 0% to 99.99%     |
 
-## Getting started
+## Prerequisites
+
+- Rust (edition 2024 — toolchain 1.85+)
+- Docker + Docker Compose (for the Iggy server)
+
+## Setup
+
+1. Create a `.env` file in the repo root with the Iggy root credentials:
+
+   ```bash
+   IGGY_ROOT_USERNAME=iggy
+   IGGY_ROOT_PASSWORD=dev-iggy-password
+   ```
+
+   `.env` is gitignored. The same values are read by both `docker-compose` (to bootstrap the server's root user on first start) and by the gateway/consumer at runtime via `dotenvy`.
+
+2. Start the Iggy server:
+
+   ```bash
+   docker-compose up -d
+   ```
+
+   This exposes TCP on `127.0.0.1:8090` and the HTTP API on `127.0.0.1:3000`.
+
+## Running
+
+Run each in a separate terminal:
 
 ```bash
-# Start the gateway
+# 1. Gateway — listens on 127.0.0.1:8080 for producers, forwards to Iggy
 cargo run --bin gateway
 
-# Start one or more producers (in separate terminals)
+# 2. Consumer — polls the Iggy topic and logs messages
+cargo run --bin consumer
+
+# 3. Producers — connect to the gateway and emit readings
 # Usage: producer <sensor_type> <frequency_seconds>
 cargo run --bin producer temperature 5
 cargo run --bin producer humidity 10
 ```
 
-The gateway listens on `127.0.0.1:8080`. Each producer connects on startup and sends a reading every `<frequency>` seconds.
+The gateway batches every 10 sensor readings into a single Iggy publish.
+
+## Resetting state
+
+To wipe the Iggy data volume (e.g. to re-bootstrap with a new root password):
+
+```bash
+docker-compose down -v
+docker-compose up -d
+```
