@@ -4,9 +4,9 @@ use std::{
 
 use rand::random_range;
 
-use crate::sensor::{SensorType, generate_sensor_reading};
+use crate::reading::{SensorType, generate_sensor_reading};
 
-pub mod sensor;
+pub mod reading;
 
 struct Config {
     sensor_type: SensorType,

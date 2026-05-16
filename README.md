@@ -5,13 +5,13 @@ A simulated IoT sensor data pipeline built in Rust. Sensors produce readings at 
 ## Architecture
 
 ```
-[Producer (sensor)] ──TCP──> [Gateway] ──Iggy──> [Consumer]
-[Producer (sensor)] ──TCP──> [Gateway] ──Iggy──> [Consumer]
-        ...
+[Sensor] ──TCP──> [Gateway] ──Iggy──> [Consumer]
+[Sensor] ──TCP──> [Gateway] ──Iggy──> [Consumer]
+    ...
 ```
 
-- **Producer** — simulates a sensor of a given type, generates randomized readings at a set frequency, and streams them to the gateway using a length-prefixed binary protocol.
-- **Gateway** — TCP server that accepts connections from multiple producers concurrently. Acts as an [Apache Iggy](https://iggy.apache.org) producer, forwarding sensor readings into a message stream.
+- **Sensor** — simulates a sensor of a given type, generates randomized readings at a set frequency, and streams them to the gateway using a length-prefixed binary protocol.
+- **Gateway** — TCP server that accepts connections from multiple sensors concurrently. Acts as an [Apache Iggy](https://iggy.apache.org) producer, forwarding sensor readings into a message stream.
 - **Consumer** — subscribes to the Iggy topic and prints incoming messages.
 
 ## Sensor types
@@ -56,10 +56,10 @@ cargo run --bin gateway
 # 2. Consumer — polls the Iggy topic and logs messages
 cargo run --bin consumer
 
-# 3. Producers — connect to the gateway and emit readings
-# Usage: producer <sensor_type> <frequency_seconds>
-cargo run --bin producer temperature 5
-cargo run --bin producer humidity 10
+# 3. Sensors — connect to the gateway and emit readings
+# Usage: sensor <sensor_type> <frequency_seconds>
+cargo run --bin sensor temperature 5
+cargo run --bin sensor humidity 10
 ```
 
 The gateway batches every 10 sensor readings into a single Iggy publish.
